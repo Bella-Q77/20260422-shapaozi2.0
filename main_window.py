@@ -385,8 +385,9 @@ class MainWindow(QMainWindow):
             )
             
             if answer_text:
-                detected_events = self.question_generator._extract_event_entities(answer_text)
-                detected_persons = self.question_generator._extract_person_entities(answer_text)
+                analysis = self.question_generator.analyze_text(answer_text)
+                detected_events = analysis.get("events", [])
+                detected_persons = analysis.get("persons", [])
                 answer.detected_events = detected_events
                 answer.detected_persons = detected_persons
                 
