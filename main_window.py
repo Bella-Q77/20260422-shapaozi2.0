@@ -20,14 +20,15 @@ from answer_aggregator import AnswerAggregator
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("傻狍子 - 刨根问底")
-        self.setMinimumSize(1000, 700)
+        self.setWindowTitle("傻狍子2.0 - 刨根问底")
+        self.setMinimumSize(1100, 750)
         
         self.current_event: Optional[Event] = None
         self.question_generator = QuestionGenerator()
         self.answer_aggregator = AnswerAggregator()
         
         self.events_history: List[Event] = []
+        self.level_tabs: Dict[int, QListWidget] = {}
         
         self.init_ui()
         
@@ -39,14 +40,14 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(15, 15, 15, 15)
         
-        header_label = QLabel("傻狍子 - 刨根问底")
+        header_label = QLabel("傻狍子2.0 - 刨根问底")
         header_font = QFont("Microsoft YaHei", 18, QFont.Bold)
         header_label.setFont(header_font)
         header_label.setAlignment(Qt.AlignCenter)
         header_label.setStyleSheet("color: #2c3e50; padding: 10px;")
         main_layout.addWidget(header_label)
         
-        subtitle_label = QLabel("通过多层级提问，深入了解每一个事件")
+        subtitle_label = QLabel("通过多层级提问，深入了解每一个事件 | 支持六要素提问、人物属性提问、STAR法则汇总")
         subtitle_font = QFont("Microsoft YaHei", 10)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
@@ -67,7 +68,7 @@ class MainWindow(QMainWindow):
         right_panel = self.create_right_panel()
         splitter.addWidget(right_panel)
         
-        splitter.setSizes([350, 650])
+        splitter.setSizes([400, 700])
         
         main_layout.addWidget(splitter)
         
@@ -82,9 +83,9 @@ class MainWindow(QMainWindow):
         event_input_layout = QVBoxLayout(event_input_group)
         
         self.event_input = QTextEdit()
-        self.event_input.setPlaceholderText("请输入一个事件，例如：\n- 今天上课了\n- 我和朋友去吃饭了\n- 昨天参加了一个会议\n\n系统将自动生成多层级问题，帮助您深入了解这个事件。")
-        self.event_input.setMaximumHeight(120)
-        self.event_input.setFont(QFont("Microsoft YaHei", 10))
+        self.event_input.setPlaceholderText("请输入一个事件，例如：\n- 今天上课了\n- 我和朋友去吃饭了\n- 昨天参加了一个会议\n\n系统将自动生成多层级问题，帮助您深入了解这个事件。\n\n【功能说明】\n1. 六要素提问：时间、地点、人物、起因、经过、结果\n2. 人物属性提问：姓名、性别、年龄、手机号、职业等\n3. 循环检测：自动检测事件是否循环\n4. STAR法则汇总：自动生成事件总结")
+        self.event_input.setMaximumHeight(160)
+        self.event_input.setFont(QFont("Microsoft YaHei", 9))
         event_input_layout.addWidget(self.event_input)
         
         start_btn = QPushButton("开始刨根问底")
@@ -106,31 +107,25 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(event_input_group)
         
-        questions_group = QGroupBox("问题列表")
+        questions_group = QGroupBox("问题列表 (动态层级)")
         questions_layout = QVBoxLayout(questions_group)
         
-        tabs = QTabWidget()
-        tabs.setFont(QFont("Microsoft YaHei", 9))
+        self.questions_tabs = QTabWidget()
+        self.questions_tabs.setFont(QFont("Microsoft YaHei", 9))
+        self.questions_tabs.setTabsClosable(False)
         
-        self.level1_list = QListWidget()
-        self.level1_list.itemClicked.connect(self.on_question_selected)
-        
-        self.level2_list = QListWidget()
-        self.level2_list.itemClicked.connect(self.on_question_selected)
-        
-        self.level3_list = QListWidget()
-        self.level3_list.itemClicked.connect(self.on_question_selected)
-        
-        tabs.addTab(self.level1_list, "第一层问题")
-        tabs.addTab(self.level2_list, "第二层问题")
-        tabs.addTab(self.level3_list, "第三层问题")
-        
-        questions_layout.addWidget(tabs)
+        questions_layout.addWidget(self.questions_tabs)
         
         progress_layout = QHBoxLayout()
         self.progress_label = QLabel("进度: 0/0 问题已回答")
         self.progress_label.setFont(QFont("Microsoft YaHei", 9))
         progress_layout.addWidget(self.progress_label)
+        
+        self.level_info_label = QLabel("当前层级: 0")
+        self.level_info_label.setFont(QFont("Microsoft YaHei", 9))
+        self.level_info_label.setStyleSheet("color: #7f8c8d;")
+        progress_layout.addWidget(self.level_info_label)
+        
         questions_layout.addLayout(progress_layout)
         
         layout.addWidget(questions_group)
@@ -195,9 +190,9 @@ class MainWindow(QMainWindow):
         answer_layout = QVBoxLayout(answer_group)
         
         self.answer_input = QTextEdit()
-        self.answer_input.setPlaceholderText("请输入您的答案...\n（可以留空，表示该问题没有相关信息）")
+        self.answer_input.setPlaceholderText("请输入您的答案...\n（回答中涉及的人物，系统将自动生成属性问题；\n回答中涉及的新事件（起因、经过、结果），\n系统将自动生成六要素问题）\n\n提示：\n1. 如果回答中提到新人物，系统会追问该人物的属性\n2. 如果回答中提到新事件（起因、经过、结果），系统会追问该事件的六要素\n3. 如果检测到事件循环，系统会停止提问")
         self.answer_input.setFont(QFont("Microsoft YaHei", 10))
-        self.answer_input.setMaximumHeight(150)
+        self.answer_input.setMaximumHeight(180)
         answer_layout.addWidget(self.answer_input)
         
         answer_btn_layout = QHBoxLayout()
@@ -238,13 +233,13 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(answer_group)
         
-        summary_group = QGroupBox("事件汇总")
+        summary_group = QGroupBox("事件汇总 (STAR法则)")
         summary_layout = QVBoxLayout(summary_group)
         
         self.summary_text = QTextEdit()
         self.summary_text.setReadOnly(True)
         self.summary_text.setFont(QFont("Microsoft YaHei", 10))
-        self.summary_text.setPlaceholderText("当您回答完所有问题后，点击\"生成报告\"按钮查看汇总结果...")
+        self.summary_text.setPlaceholderText("当您回答完所有问题后，点击\"生成报告\"按钮查看汇总结果...\n\n报告将包含：\n1. 六要素信息（时间、地点、人物、起因、经过、结果）\n2. 人物详细信息\n3. STAR法则汇总（情境、任务、行动、结果）\n4. 完整事件描述")
         summary_layout.addWidget(self.summary_text)
         
         layout.addWidget(summary_group)
@@ -258,59 +253,73 @@ class MainWindow(QMainWindow):
             return
         
         event_id = f"event_{uuid.uuid4().hex[:8]}"
+        initial_event_id = f"event_0"
+        
         self.current_event = Event(
             id=event_id,
-            initial_text=event_text
+            initial_text=event_text,
+            initial_event_id=initial_event_id
         )
         
         level1_questions = self.question_generator.generate_level1_questions(event_text)
         self.current_event.questions = level1_questions
         
+        self.clear_question_tabs()
         self.update_question_lists()
         self.update_progress()
         
         self.save_btn.setEnabled(True)
         self.generate_btn.setEnabled(True)
         
-        self.statusBar().showMessage(f"已创建事件，生成了 {len(level1_questions)} 个第一层问题")
+        self.statusBar().showMessage(f"已创建事件，生成了 {len(level1_questions)} 个第一层问题（六要素）")
         
         if level1_questions:
             self.select_question(level1_questions[0])
+    
+    def clear_question_tabs(self):
+        while self.questions_tabs.count() > 0:
+            self.questions_tabs.removeTab(0)
+        self.level_tabs.clear()
+    
+    def get_or_create_level_tab(self, level: int) -> QListWidget:
+        if level in self.level_tabs:
+            return self.level_tabs[level]
         
+        list_widget = QListWidget()
+        list_widget.itemClicked.connect(self.on_question_selected)
+        
+        self.questions_tabs.addTab(list_widget, f"第{level}层问题")
+        self.level_tabs[level] = list_widget
+        
+        return list_widget
+    
     def update_question_lists(self):
         if not self.current_event:
-            self.level1_list.clear()
-            self.level2_list.clear()
-            self.level3_list.clear()
+            self.clear_question_tabs()
             return
         
-        self.level1_list.clear()
-        for question in self.current_event.questions:
-            item = QListWidgetItem()
-            item.setText(f"{question.text}")
-            item.setData(Qt.UserRole, question.id)
-            if question.is_answered:
-                item.setForeground(QColor("#27ae60"))
-                item.setText(f"✓ {question.text}")
-            self.level1_list.addItem(item)
+        max_level = self.current_event.get_max_level()
         
-        self.level2_list.clear()
-        self.level3_list.clear()
+        all_questions = self.current_event.get_all_questions()
+        for question in all_questions:
+            level = question.level
+            list_widget = self.get_or_create_level_tab(level)
         
-        for answer in self.current_event.answers.values():
-            for question in answer.child_questions:
+        for level, list_widget in self.level_tabs.items():
+            list_widget.clear()
+            questions = self.current_event.get_questions_by_level(level)
+            
+            for question in questions:
                 item = QListWidgetItem()
                 item.setText(f"{question.text}")
                 item.setData(Qt.UserRole, question.id)
                 if question.is_answered:
                     item.setForeground(QColor("#27ae60"))
                     item.setText(f"✓ {question.text}")
-                
-                if question.level == 2:
-                    self.level2_list.addItem(item)
-                elif question.level == 3:
-                    self.level3_list.addItem(item)
-                    
+                list_widget.addItem(item)
+        
+        self.level_info_label.setText(f"当前层级: {max_level}")
+    
     def update_progress(self):
         if not self.current_event:
             self.progress_label.setText("进度: 0/0 问题已回答")
@@ -321,7 +330,7 @@ class MainWindow(QMainWindow):
         total = len(all_questions)
         
         self.progress_label.setText(f"进度: {answered}/{total} 问题已回答")
-        
+    
     def on_question_selected(self, item: QListWidgetItem):
         question_id = item.data(Qt.UserRole)
         if not self.current_event:
@@ -344,6 +353,12 @@ class MainWindow(QMainWindow):
             
         self.current_question_id = question.id
         
+        if question.level in self.level_tabs:
+            list_widget = self.level_tabs[question.level]
+            index = self.questions_tabs.indexOf(list_widget)
+            if index >= 0:
+                self.questions_tabs.setCurrentIndex(index)
+    
     def submit_answer(self):
         if not self.current_event or not hasattr(self, 'current_question_id'):
             QMessageBox.warning(self, "提示", "请先选择一个问题！")
@@ -353,6 +368,10 @@ class MainWindow(QMainWindow):
         
         question = self.current_event.get_question_by_id(self.current_question_id)
         if not question:
+            return
+        
+        if self.current_event.is_cycle_detected:
+            QMessageBox.information(self, "提示", f"已检测到事件循环，提问已终止。\n\n{self.current_event.cycle_message}")
             return
         
         if self.current_event.get_answer_by_question_id(question.id):
@@ -365,18 +384,37 @@ class MainWindow(QMainWindow):
                 level=question.level
             )
             
-            if question.level < 3 and answer_text:
-                child_questions = self.question_generator.generate_questions_for_answer(
-                    answer_id=answer.id,
-                    answer_text=answer_text,
-                    parent_category=question.category,
-                    current_level=question.level,
-                    parent_question_text=question.text
-                )
+            if answer_text:
+                detected_events = self.question_generator._extract_event_entities(answer_text)
+                detected_persons = self.question_generator._extract_person_entities(answer_text)
+                answer.detected_events = detected_events
+                answer.detected_persons = detected_persons
                 
-                if child_questions:
-                    self.current_event.add_child_questions(answer.id, child_questions)
-                    self.statusBar().showMessage(f"已生成 {len(child_questions)} 个第{question.level + 1}层问题")
+                for event_text in detected_events:
+                    if event_text:
+                        event_node = self.current_event.add_event_node(
+                            event_text=event_text,
+                            level=question.level + 1,
+                            parent_event_id=self.current_event.initial_event_id
+                        )
+                        
+                        if self.current_event.is_cycle_detected:
+                            self.statusBar().showMessage(f"检测到循环: {self.current_event.cycle_message}")
+                            QMessageBox.warning(self, "循环检测", self.current_event.cycle_message)
+                            break
+                
+                if not self.current_event.is_cycle_detected:
+                    child_questions = self.question_generator.generate_questions_for_answer(
+                        answer_id=answer.id,
+                        answer_text=answer_text,
+                        parent_category=question.category,
+                        current_level=question.level,
+                        parent_question_text=question.text
+                    )
+                    
+                    if child_questions:
+                        self.current_event.add_child_questions(answer.id, child_questions)
+                        self.statusBar().showMessage(f"已生成 {len(child_questions)} 个第{question.level + 1}层问题")
         
         self.update_question_lists()
         self.update_progress()
@@ -402,14 +440,8 @@ class MainWindow(QMainWindow):
         
         self.next_question()
         
-    def get_question_list(self, level: int) -> QListWidget:
-        if level == 1:
-            return self.level1_list
-        elif level == 2:
-            return self.level2_list
-        elif level == 3:
-            return self.level3_list
-        return None
+    def get_question_list(self, level: int) -> Optional[QListWidget]:
+        return self.level_tabs.get(level)
         
     def next_question(self):
         if not self.current_event:
@@ -427,19 +459,14 @@ class MainWindow(QMainWindow):
         
         next_index = current_index + 1
         if next_index >= len(all_questions):
-            QMessageBox.information(self, "提示", "这是最后一个问题了！")
+            if self.current_event.is_cycle_detected:
+                QMessageBox.information(self, "提示", f"所有问题已回答完毕！\n\n已检测到事件循环，提问已终止。\n{self.current_event.cycle_message}")
+            else:
+                QMessageBox.information(self, "提示", "这是最后一个问题了！\n\n您可以点击\"生成报告\"查看汇总结果。")
             return
         
         next_question = all_questions[next_index]
         self.select_question(next_question)
-        
-        question_list = self.get_question_list(next_question.level)
-        if question_list:
-            for i in range(question_list.count()):
-                item = question_list.item(i)
-                if item.data(Qt.UserRole) == next_question.id:
-                    question_list.setCurrentItem(item)
-                    break
         
     def prev_question(self):
         if not self.current_event:
@@ -462,14 +489,6 @@ class MainWindow(QMainWindow):
         
         prev_question = all_questions[prev_index]
         self.select_question(prev_question)
-        
-        question_list = self.get_question_list(prev_question.level)
-        if question_list:
-            for i in range(question_list.count()):
-                item = question_list.item(i)
-                if item.data(Qt.UserRole) == prev_question.id:
-                    question_list.setCurrentItem(item)
-                    break
                     
     def save_event(self):
         if not self.current_event:
@@ -507,13 +526,17 @@ class MainWindow(QMainWindow):
                 self.current_event = Event.from_dict(data)
                 
                 self.event_input.setPlainText(self.current_event.initial_text)
+                self.clear_question_tabs()
                 self.update_question_lists()
                 self.update_progress()
                 
                 self.save_btn.setEnabled(True)
                 self.generate_btn.setEnabled(True)
                 
-                QMessageBox.information(self, "成功", f"事件已加载：\n{self.current_event.initial_text}")
+                if self.current_event.is_cycle_detected:
+                    QMessageBox.information(self, "提示", f"事件已加载，但检测到事件循环：\n{self.current_event.cycle_message}")
+                else:
+                    QMessageBox.information(self, "成功", f"事件已加载：\n{self.current_event.initial_text}")
                 self.statusBar().showMessage(f"事件已加载: {file_path}")
                 
             except Exception as e:
@@ -527,4 +550,4 @@ class MainWindow(QMainWindow):
         summary = self.answer_aggregator.aggregate(self.current_event)
         self.summary_text.setPlainText(summary)
         
-        self.statusBar().showMessage("报告已生成")
+        self.statusBar().showMessage("报告已生成（STAR法则）")
