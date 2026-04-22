@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional
 from models import Event, Question, Answer, QuestionCategory, PersonAttribute
 
@@ -259,32 +260,137 @@ class AnswerAggregator:
     def _generate_narrative(self, event: Event, time_info: str, place_info: str, 
                             person_info: str, cause_info: str, process_info: str, 
                             result_info: str) -> str:
-        narrative_parts = []
-        
         base_text = event.initial_text
         
-        if time_info:
-            narrative_parts.append(f"{time_info}，")
+        base_text = self._clean_base_text(base_text)
         
-        if place_info:
-            narrative_parts.append(f"在{place_info}，")
+        is_duration = self._is_duration(time_info)
+        
+        parts = []
         
         if person_info:
-            narrative_parts.append(f"{person_info}")
+            if not self._person_in_text(person_info, base_text):
+                parts.append(person_info)
         
-        narrative_parts.append(base_text)
+        if place_info and not is_duration:
+            if not self._place_in_text(place_info, base_text):
+                parts.append(f"在{place_info}")
+        
+        parts.append(base_text)
         
         if cause_info:
-            narrative_parts.append(f"，原因是{cause_info}")
+            if not self._cause_in_text(cause_info, base_text):
+                parts.append(f"，原因是{cause_info}")
         
         if process_info:
-            narrative_parts.append(f"，过程是{process_info}")
+            if not self._process_in_text(process_info, base_text):
+                parts.append(f"，{process_info}")
         
         if result_info:
-            narrative_parts.append(f"，结果是{result_info}")
+            if not self._result_in_text(result_info, base_text):
+                parts.append(f"，结果是{result_info}")
         
-        narrative = "".join(narrative_parts)
+        if time_info and is_duration:
+            parts.append(f"，{time_info}")
+        
+        narrative = "".join(parts)
         if not narrative.endswith("。"):
             narrative += "。"
         
         return narrative
+    
+    def _clean_base_text(self, text: str) -> str:
+        if not text:
+            return text
+        
+        text = text.strip()
+        
+        text = text.rstrip("。！？，,")
+        
+        if text.startswith("我") or text.startswith("我们"):
+            pass
+        elif text.startswith("去"):
+            text = text[1:]
+            if text.startswith("了"):
+                text = text[1:]
+        elif text.endswith("了"):
+            text = text[:-1]
+        
+        return text.strip()
+    
+    def _is_duration(self, time_info: str) -> bool:
+        if not time_info:
+            return False
+        
+        duration_patterns = [
+            r"(\d+)\s*个?\s*(小?时|分钟|秒|天|周|月|年)",
+            r"持续了?\s*\d+",
+            r"花了?\s*\d+",
+            r"用了?\s*\d+",
+        ]
+        
+        for pattern in duration_patterns:
+            if re.search(pattern, time_info):
+                return True
+        
+        return False
+    
+    def _person_in_text(self, person_info: str, text: str) -> bool:
+        if not person_info or not text:
+            return False
+        
+        persons = re.split(r'[和与及跟、，,\s]+', person_info)
+        for person in persons:
+            person = person.strip()
+            if person and person in text:
+                return True
+        
+        return False
+    
+    def _place_in_text(self, place_info: str, text: str) -> bool:
+        if not place_info or not text:
+            return False
+        
+        places = re.split(r'[、，,\s]+', place_info)
+        for place in places:
+            place = place.strip()
+            if place and place in text:
+                return True
+        
+        if "在" in text and any(p in text for p in place_info.split()):
+            return True
+        
+        return False
+    
+    def _cause_in_text(self, cause_info: str, text: str) -> bool:
+        if not cause_info or not text:
+            return False
+        
+        cause_keywords = ["因为", "由于", "原因是", "为了", "原因是"]
+        for keyword in cause_keywords:
+            if keyword in text and any(c in text for c in cause_info.split()):
+                return True
+        
+        return False
+    
+    def _process_in_text(self, process_info: str, text: str) -> bool:
+        if not process_info or not text:
+            return False
+        
+        process_keywords = ["过程是", "经过是", "首先", "然后", "接着", "最后", "步骤"]
+        for keyword in process_keywords:
+            if keyword in text:
+                return True
+        
+        return False
+    
+    def _result_in_text(self, result_info: str, text: str) -> bool:
+        if not result_info or not text:
+            return False
+        
+        result_keywords = ["结果是", "最后", "终于", "最终"]
+        for keyword in result_keywords:
+            if keyword in text:
+                return True
+        
+        return False

@@ -250,6 +250,21 @@ class QuestionGenerator:
             (r'跟([\u4e00-\u9fa5]{1,4})一起', lambda m: f"{m.group(1)}是谁？"),
             (r'被([\u4e00-\u9fa5]{1,4})', lambda m: f"{m.group(1)}是谁？"),
             (r'([\u4e00-\u9fa5]{2,3}[老师经理老板医生])', lambda m: f"{m.group(1)}是谁？"),
+            (r'听说', lambda m: "听谁说的？"),
+            (r'看到', lambda m: "谁看到的？"),
+            (r'发现', lambda m: "谁发现的？"),
+            (r'知道', lambda m: "谁知道的？"),
+            (r'了解', lambda m: "谁了解的？"),
+            (r'收到', lambda m: "谁收到的？"),
+            (r'接到', lambda m: "谁接到的？"),
+            (r'说', lambda m: "谁说的？"),
+            (r'告诉', lambda m: "谁告诉的？"),
+            (r'介绍', lambda m: "谁介绍的？"),
+            (r'推荐', lambda m: "谁推荐的？"),
+            (r'听([\u4e00-\u9fa5]{1,2})说', lambda m: f"{m.group(1)}是谁？"),
+            (r'从([\u4e00-\u9fa5]{1,4})那里', lambda m: f"{m.group(1)}是谁？"),
+            (r'([\u4e00-\u9fa5]{1,4})介绍的', lambda m: f"{m.group(1)}是谁？"),
+            (r'([\u4e00-\u9fa5]{1,4})推荐的', lambda m: f"{m.group(1)}是谁？"),
         ]
         
         self.cause_transformers = [
