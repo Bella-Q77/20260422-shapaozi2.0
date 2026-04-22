@@ -11,6 +11,7 @@ class QuestionGenerator:
         self.question_counter = 0
         self._init_patterns()
         self._init_templates()
+        self._init_question_transformers()
     
     def _init_patterns(self):
         self.person_titles = [
@@ -207,6 +208,69 @@ class QuestionGenerator:
             }
         }
     
+    def _init_question_transformers(self):
+        self.time_transformers = [
+            (r'我([\u4e00-\u9fa5]{1,4})[了过]', lambda m: f"什么时候{m.group(1)}的？"),
+            (r'([\u4e00-\u9fa5]{1,4})了[我他她它]', lambda m: f"什么时候{m.group(1)}的？"),
+            (r'听说', lambda m: "什么时候听说的？"),
+            (r'看到', lambda m: "什么时候看到的？"),
+            (r'发现', lambda m: "什么时候发现的？"),
+            (r'知道', lambda m: "什么时候知道的？"),
+            (r'了解', lambda m: "什么时候了解的？"),
+            (r'收到', lambda m: "什么时候收到的？"),
+            (r'接到', lambda m: "什么时候接到的？"),
+            (r'接到', lambda m: "什么时候接到的？"),
+            (r'收到', lambda m: "什么时候收到的？"),
+            (r'去了', lambda m: "什么时候去的？"),
+            (r'来了', lambda m: "什么时候来的？"),
+            (r'走了', lambda m: "什么时候走的？"),
+            (r'买了', lambda m: "什么时候买的？"),
+            (r'卖了', lambda m: "什么时候卖的？"),
+            (r'吃了', lambda m: "什么时候吃的？"),
+            (r'喝了', lambda m: "什么时候喝的？"),
+            (r'玩了', lambda m: "什么时候玩的？"),
+            (r'工作了', lambda m: "什么时候工作的？"),
+            (r'学习了', lambda m: "什么时候学习的？"),
+            (r'开会了', lambda m: "什么时候开会的？"),
+            (r'旅游了', lambda m: "什么时候旅游的？"),
+            (r'购物了', lambda m: "什么时候购物的？"),
+            (r'运动了', lambda m: "什么时候运动的？"),
+        ]
+        
+        self.place_transformers = [
+            (r'我([\u4e00-\u9fa5]{1,4})[了过]', lambda m: f"在哪里{m.group(1)}的？"),
+            (r'去了', lambda m: "去了哪里？"),
+            (r'来了', lambda m: "来自哪里？"),
+            (r'在', lambda m: "具体在哪里？"),
+            (r'到', lambda m: "到了哪里？"),
+        ]
+        
+        self.person_transformers = [
+            (r'和([\u4e00-\u9fa5]{1,4})一起', lambda m: f"{m.group(1)}是谁？"),
+            (r'跟([\u4e00-\u9fa5]{1,4})一起', lambda m: f"{m.group(1)}是谁？"),
+            (r'被([\u4e00-\u9fa5]{1,4})', lambda m: f"{m.group(1)}是谁？"),
+            (r'([\u4e00-\u9fa5]{2,3}[老师经理老板医生])', lambda m: f"{m.group(1)}是谁？"),
+        ]
+        
+        self.cause_transformers = [
+            (r'因为', lambda m: "具体原因是什么？"),
+            (r'由于', lambda m: "具体原因是什么？"),
+            (r'为了', lambda m: "目的是什么？"),
+            (r'想要', lambda m: "为什么想要？"),
+            (r'需要', lambda m: "为什么需要？"),
+        ]
+        
+        self.process_transformers = [
+            (r'如何', lambda m: "具体是如何做的？"),
+            (r'怎么', lambda m: "具体是怎么做的？"),
+        ]
+        
+        self.result_transformers = [
+            (r'结果', lambda m: "具体结果是什么？"),
+            (r'最后', lambda m: "最后怎么样了？"),
+            (r'终于', lambda m: "终于怎么样了？"),
+        ]
+    
     def _generate_question_id(self) -> str:
         self.question_counter += 1
         return f"q_{self.question_counter}_{uuid.uuid4().hex[:8]}"
@@ -231,7 +295,7 @@ class QuestionGenerator:
                         entities.append(part)
         
         entities = [e for e in entities if len(e) >= 1]
-        return entities if entities else [text.strip()]
+        return entities
     
     def _extract_event_entities(self, text: str) -> List[str]:
         events = []
@@ -250,6 +314,66 @@ class QuestionGenerator:
                     events.append(sentence)
         
         return events
+    
+    def _generate_natural_question(self, event_text: str, category: QuestionCategory) -> str:
+        transformers = {
+            QuestionCategory.TIME: self.time_transformers,
+            QuestionCategory.PLACE: self.place_transformers,
+            QuestionCategory.PERSON: self.person_transformers,
+            QuestionCategory.CAUSE: self.cause_transformers,
+            QuestionCategory.PROCESS: self.process_transformers,
+            QuestionCategory.RESULT: self.result_transformers,
+        }
+        
+        transformer_list = transformers.get(category, [])
+        
+        for pattern, transformer in transformer_list:
+            match = re.search(pattern, event_text)
+            if match:
+                result = transformer(match)
+                if result and len(result) > 0:
+                    return result
+        
+        simplified = self._simplify_event(event_text)
+        
+        category_suffixes = {
+            QuestionCategory.TIME: "发生在什么时候？",
+            QuestionCategory.PLACE: "发生在哪里？",
+            QuestionCategory.PERSON: "谁参与了？",
+            QuestionCategory.CAUSE: "为什么会发生？",
+            QuestionCategory.PROCESS: "具体是怎样的？",
+            QuestionCategory.RESULT: "结果是什么？",
+        }
+        
+        default_questions = {
+            QuestionCategory.TIME: "这个事件发生在什么时候？",
+            QuestionCategory.PLACE: "这个事件发生在哪里？",
+            QuestionCategory.PERSON: "谁参与了这个事件？",
+            QuestionCategory.CAUSE: "这个事件为什么会发生？",
+            QuestionCategory.PROCESS: "这个事件是如何发生的？",
+            QuestionCategory.RESULT: "这个事件的结果是什么？",
+        }
+        
+        if simplified and len(simplified) <= 15:
+            return f"{simplified}{category_suffixes.get(category, default_questions.get(category, ''))}"
+        
+        return default_questions.get(category, "请提供更多信息。")
+    
+    def _simplify_event(self, event_text: str) -> str:
+        event_text = event_text.strip()
+        
+        event_text = re.sub(r'^我', '', event_text)
+        event_text = re.sub(r'^他', '', event_text)
+        event_text = re.sub(r'^她', '', event_text)
+        event_text = re.sub(r'^它', '', event_text)
+        event_text = re.sub(r'^我们', '', event_text)
+        event_text = re.sub(r'^他们', '', event_text)
+        event_text = re.sub(r'^她们', '', event_text)
+        
+        event_text = re.sub(r'[了过]$', '', event_text)
+        event_text = re.sub(r'[了过]\s*$', '', event_text)
+        
+        return event_text.strip()
     
     def generate_level1_questions(self, event_text: str) -> List[Question]:
         questions = []
@@ -293,6 +417,17 @@ class QuestionGenerator:
                                             parent_answer_id: str) -> List[Question]:
         questions = []
         
+        if not person or len(person) < 2:
+            return questions
+        
+        if any(title in person for title in self.person_titles):
+            pass
+        elif len(person) == 2 and person[0] in self.person_prefixes:
+            pass
+        else:
+            if not re.match(r'^[\u4e00-\u9fa5]{2,4}$', person):
+                return questions
+        
         key_attributes = [
             PersonAttribute.NAME,
             PersonAttribute.GENDER,
@@ -326,11 +461,12 @@ class QuestionGenerator:
         for category in [QuestionCategory.TIME, QuestionCategory.PLACE, 
                          QuestionCategory.PERSON, QuestionCategory.CAUSE,
                          QuestionCategory.PROCESS, QuestionCategory.RESULT]:
-            templates = self.six_elements_templates[category]
-            for q_text in templates[:1]:
+            q_text = self._generate_natural_question(event_text, category)
+            
+            if q_text:
                 question = Question(
                     id=self._generate_question_id(),
-                    text=f"针对事件\"{event_text}\"：{q_text}",
+                    text=q_text,
                     category=category,
                     level=level,
                     target_event_id=parent_answer_id,
@@ -353,7 +489,7 @@ class QuestionGenerator:
         
         persons = self._extract_person_entities(answer_text)
         for person in persons:
-            if person and len(person) >= 1:
+            if person and len(person) >= 2:
                 person_questions = self.generate_person_attribute_questions(
                     person, next_level, answer_id
                 )
